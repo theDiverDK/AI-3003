@@ -60,7 +60,6 @@ namespace text_analysis
                         }
                     }
 
-
                     // Get entities
                     CategorizedEntityCollection entities = aiClient.RecognizeEntities(text);
                     if (entities.Count > 0)
@@ -72,7 +71,6 @@ namespace text_analysis
                         }
                     }
 
-
                     // Get linked entities
                     LinkedEntityCollection linkedEntities = aiClient.RecognizeLinkedEntities(text);
                     if (linkedEntities.Count > 0)
@@ -83,8 +81,6 @@ namespace text_analysis
                             Console.WriteLine($"\t{linkedEntity.Name} ({linkedEntity.Url})");
                         }
                     }
-
-
                 }
             }
             catch (Exception ex)
