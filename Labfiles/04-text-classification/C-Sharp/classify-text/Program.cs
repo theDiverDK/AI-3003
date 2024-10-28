@@ -4,7 +4,9 @@ using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-// Import namespaces
+// import namespaces
+using Azure;
+using Azure.AI.TextAnalytics;
 
 
 namespace classify_text
@@ -24,12 +26,15 @@ namespace classify_text
                 string deploymentName = configuration["Deployment"];
 
                 // Create client using endpoint and key
+                AzureKeyCredential credentials = new AzureKeyCredential(aiSvcKey);
+                Uri endpoint = new Uri(aiSvcEndpoint);
+                TextAnalyticsClient aiClient = new TextAnalyticsClient(endpoint, credentials);
 
 
                 // Read each text file in the articles folder
                 List<string> batchedDocuments = new List<string>();
-                
-                var folderPath = Path.GetFullPath("./articles");  
+
+                var folderPath = Path.GetFullPath("./articles");
                 DirectoryInfo folder = new DirectoryInfo(folderPath);
                 FileInfo[] files = folder.GetFiles("*.txt");
                 foreach (var file in files)
@@ -42,6 +47,34 @@ namespace classify_text
                 }
 
                 // Get Classifications
+                ClassifyDocumentOperation operation = await aiClient.SingleLabelClassifyAsync(WaitUntil.Completed, batchedDocuments, projectName, deploymentName);
+
+                int fileNo = 0;
+                await foreach (ClassifyDocumentResultCollection documentsInPage in operation.Value)
+                {
+                    foreach (ClassifyDocumentResult documentResult in documentsInPage)
+                    {
+                        Console.WriteLine(files[fileNo].Name);
+                        if (documentResult.HasError)
+                        {
+                            Console.WriteLine($"  Error!");
+                            Console.WriteLine($"  Document error code: {documentResult.Error.ErrorCode}");
+                            Console.WriteLine($"  Message: {documentResult.Error.Message}");
+                            continue;
+                        }
+
+                        Console.WriteLine($"  Predicted the following class:");
+                        Console.WriteLine();
+
+                        foreach (ClassificationCategory classification in documentResult.ClassificationCategories)
+                        {
+                            Console.WriteLine($"  Category: {classification.Category}");
+                            Console.WriteLine($"  Confidence score: {classification.ConfidenceScore}");
+                            Console.WriteLine();
+                        }
+                        fileNo++;
+                    }
+                }
 
 
             }
