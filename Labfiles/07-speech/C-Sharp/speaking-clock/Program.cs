@@ -3,7 +3,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 
 // Import namespaces
-
+using Microsoft.CognitiveServices.Speech;
+using Microsoft.CognitiveServices.Speech.Audio;
+using System.Media;
 
 namespace speaking_clock
 {
@@ -21,12 +23,17 @@ namespace speaking_clock
                 string aiSvcRegion = configuration["SpeechRegion"];
 
                 // Configure speech service
+                speechConfig = SpeechConfig.FromSubscription(aiSvcKey, aiSvcRegion);
+                Console.WriteLine("Ready to use speech service in " + speechConfig.Region);
+
+                // Configure voice
+                speechConfig.SpeechSynthesisVoiceName = "en-US-AriaNeural";
 
 
                 // Get spoken input
                 string command = "";
                 command = await TranscribeCommand();
-                if (command.ToLower()=="what time is it?")
+                if (command.ToLower() == "what time is it?")
                 {
                     await TellTime();
                 }
@@ -41,12 +48,33 @@ namespace speaking_clock
         static async Task<string> TranscribeCommand()
         {
             string command = "";
-            
+
             // Configure speech recognition
+            // Configure speech recognition
+            string audioFile = "time.wav";
+            SoundPlayer wavPlayer = new SoundPlayer(audioFile);
+            wavPlayer.Play();
+            using AudioConfig audioConfig = AudioConfig.FromWavFileInput(audioFile);
+            using SpeechRecognizer speechRecognizer = new SpeechRecognizer(speechConfig, audioConfig);
 
 
             // Process speech input
-
+            SpeechRecognitionResult speech = await speechRecognizer.RecognizeOnceAsync();
+            if (speech.Reason == ResultReason.RecognizedSpeech)
+            {
+                command = speech.Text;
+                Console.WriteLine(command);
+            }
+            else
+            {
+                Console.WriteLine(speech.Reason);
+                if (speech.Reason == ResultReason.Canceled)
+                {
+                    var cancellation = CancellationDetails.FromResult(speech);
+                    Console.WriteLine(cancellation.Reason);
+                    Console.WriteLine(cancellation.ErrorDetails);
+                }
+            }
 
             // Return the command
             return command;
@@ -56,11 +84,24 @@ namespace speaking_clock
         {
             var now = DateTime.Now;
             string responseText = "The time is " + now.Hour.ToString() + ":" + now.Minute.ToString("D2");
-                        
+
             // Configure speech synthesis
+            speechConfig.SpeechSynthesisVoiceName = "en-GB-LibbyNeural"; // change this
+            using SpeechSynthesizer speechSynthesizer = new SpeechSynthesizer(speechConfig);
 
-
-            // Synthesize spoken output
+            string responseSsml = $@"
+    <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
+        <voice name='en-GB-LibbyNeural'>
+            {responseText}
+            <break strength='weak'/>
+            Time to end this lab!
+        </voice>
+    </speak>";
+            SpeechSynthesisResult speak = await speechSynthesizer.SpeakSsmlAsync(responseSsml);
+            if (speak.Reason != ResultReason.SynthesizingAudioCompleted)
+            {
+                Console.WriteLine(speak.Reason);
+            }
 
 
             // Print the response
